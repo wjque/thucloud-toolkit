@@ -25,6 +25,7 @@ from .manifest import ManifestStore
 from .share import download_share
 from .transfer import (
     TransferOptions,
+    download_repo_dir,
     download_repo_file,
     upload_paths,
     upload_urls,
@@ -329,6 +330,24 @@ def command_download(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_download_dir(args: argparse.Namespace) -> int:
+    client = make_client(args)
+    client.ensure_repo_access(args.repo_id)
+    options = make_options(args)
+    failures = download_repo_dir(
+        client,
+        repo_id=args.repo_id,
+        remote_dir=args.remote_dir,
+        output_dir=args.output_dir,
+        options=options,
+    )
+    if failures:
+        logging.error("%d file(s) failed.", len(failures))
+        return 1
+    logging.info("Directory download finished.")
+    return 0
+
+
 def command_share_download(args: argparse.Namespace) -> int:
     options = make_options(args)
     download_share(
@@ -404,6 +423,14 @@ def build_parser() -> argparse.ArgumentParser:
     download.add_argument("-o", "--output", help="Output file for one remote path, or output directory for many")
     download.add_argument("remote_paths", nargs="+", help="Remote file path(s), for example /behave/file.zip")
     download.set_defaults(func=command_download)
+
+    download_dir = subparsers.add_parser("download-dir", help="Recursively download a remote directory")
+    add_auth_args(download_dir)
+    add_common_transfer_args(download_dir)
+    download_dir.add_argument("--repo-id", required=True)
+    download_dir.add_argument("--remote-dir", required=True, help="Remote directory path, for example /datasets/behave")
+    download_dir.add_argument("-o", "--output-dir", default="downloads", help="Local output directory")
+    download_dir.set_defaults(func=command_download_dir)
 
     share_download = subparsers.add_parser("share-download", help="Download files from a Tsinghua Cloud share link")
     share_download.add_argument("--cloud-url", default=DEFAULT_CLOUD_URL)

@@ -107,6 +107,17 @@ thucloud download \
   /datasets/behave/Date03.zip.part000
 ```
 
+Download a remote directory recursively:
+
+```bash
+thucloud download-dir \
+  --repo-id <library-id> \
+  --remote-dir /datasets/behave \
+  -o downloads
+```
+
+The directory structure is preserved under the output directory. For example, `/datasets/behave/file.zip` is saved as `downloads/datasets/behave/file.zip`.
+
 Download from a share link:
 
 ```bash

@@ -59,6 +59,12 @@ class SourceSnapshot:
     mtime_ns: int
 
 
+@dataclass(frozen=True)
+class RemoteFile:
+    path: str
+    size: int | None = None
+
+
 def request_timeout(connect_timeout_sec: float, read_timeout_sec: float) -> tuple[float | None, float | None] | None:
     connect_timeout = connect_timeout_sec if connect_timeout_sec > 0 else None
     read_timeout = read_timeout_sec if read_timeout_sec > 0 else None
@@ -754,6 +760,97 @@ def upload_paths(
         except Exception as exc:
             failures.append((path, exc))
             logging.error("Upload failed for %s: %s", path, exc)
+    return failures
+
+
+def remote_entry_name(entry: dict) -> str | None:
+    value = entry.get("name") or entry.get("file_name") or entry.get("folder_name")
+    if value:
+        return str(value)
+    path = entry.get("path") or entry.get("file_path") or entry.get("folder_path")
+    if not path:
+        return None
+    name = posixpath.basename(str(path).rstrip("/"))
+    return name or None
+
+
+def remote_entry_is_dir(entry: dict) -> bool:
+    entry_type = entry.get("type")
+    return entry_type == "dir" or bool(entry.get("is_dir"))
+
+
+def remote_entry_file_size(entry: dict) -> int | None:
+    size = entry.get("size", entry.get("file_size"))
+    if size is None:
+        return None
+    try:
+        return int(size)
+    except (TypeError, ValueError):
+        return None
+
+
+def list_repo_files_recursive(
+    client: CloudClient,
+    *,
+    repo_id: str,
+    remote_dir: str,
+    output_dir: str | None = None,
+) -> list[RemoteFile]:
+    remote_dir = normalize_remote_dir(remote_dir)
+    files: list[RemoteFile] = []
+
+    if output_dir is not None:
+        os.makedirs(os.path.join(os.path.abspath(output_dir), remote_dir.lstrip("/")), exist_ok=True)
+
+    for entry in client.list_dir(repo_id, remote_dir):
+        if not isinstance(entry, dict):
+            continue
+        name = remote_entry_name(entry)
+        if not name:
+            continue
+        remote_path = join_remote_path(remote_dir, name)
+        if remote_entry_is_dir(entry):
+            files.extend(
+                list_repo_files_recursive(
+                    client,
+                    repo_id=repo_id,
+                    remote_dir=remote_path,
+                    output_dir=output_dir,
+                )
+            )
+        else:
+            files.append(RemoteFile(path=normalize_remote_path(remote_path), size=remote_entry_file_size(entry)))
+    return files
+
+
+def download_repo_dir(
+    client: CloudClient,
+    *,
+    repo_id: str,
+    remote_dir: str,
+    output_dir: str,
+    options: TransferOptions,
+) -> list[tuple[str, Exception]]:
+    remote_dir = normalize_remote_dir(remote_dir)
+    output_dir = os.path.abspath(output_dir)
+    files = list_repo_files_recursive(client, repo_id=repo_id, remote_dir=remote_dir, output_dir=output_dir)
+    logging.info("Found %d file(s) under %s.", len(files), remote_dir)
+
+    failures: list[tuple[str, Exception]] = []
+    for index, remote_file in enumerate(files, 1):
+        output_path = os.path.join(output_dir, remote_file.path.lstrip("/"))
+        logging.info("[%d/%d] Downloading %s to %s", index, len(files), remote_file.path, output_path)
+        try:
+            download_repo_file(
+                client,
+                repo_id=repo_id,
+                remote_path=remote_file.path,
+                output_path=output_path,
+                options=options,
+            )
+        except Exception as exc:
+            failures.append((remote_file.path, exc))
+            logging.error("Download failed for %s: %s", remote_file.path, exc)
     return failures
 
 

@@ -102,6 +102,17 @@ thucloud download \
   /datasets/behave/Date03.zip.part000
 ```
 
+递归下载远端目录：
+
+```bash
+thucloud download-dir \
+  --repo-id <library-id> \
+  --remote-dir /datasets/behave \
+  -o downloads
+```
+
+工具会在输出目录下保留远端目录结构。例如 `/datasets/behave/file.zip` 会保存为 `downloads/datasets/behave/file.zip`。
+
 从清华云盘分享链接下载文件：
 
 ```bash
