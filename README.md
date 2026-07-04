@@ -15,20 +15,29 @@ The project focuses on large-file workflows:
 - split oversized uploads into resumable `.partNNN` files;
 - retry transient server and network failures safely.
 
+Naming:
+
+- distribution package: `thucloud-toolkit`
+- Python import package: `thucloud`
+- command line executable: `thucloud`
+
 ## Install
+
+For normal use, install the package from this repository:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
-Run the CLI either way:
+After installation, use the `thucloud` command directly:
 
 ```bash
-python3 -m thucloud --help
-python3 thucloud.py --help
+thucloud --help
 ```
+
+For source-tree development, `python3 -m thucloud --help` also works.
 
 ## Authentication
 
@@ -41,7 +50,7 @@ export THUCLOUD_TOKEN=<your_web_api_auth_token>
 You can list libraries with:
 
 ```bash
-python3 -m thucloud repos
+thucloud repos
 ```
 
 If a token was pasted into chat, logs, or scripts, rotate it in the web UI.
@@ -51,7 +60,7 @@ If a token was pasted into chat, logs, or scripts, rotate it in the web UI.
 List a remote directory:
 
 ```bash
-python3 -m thucloud ls \
+thucloud ls \
   --repo-id <library-id> \
   --remote-dir /behave
 ```
@@ -59,7 +68,7 @@ python3 -m thucloud ls \
 Upload local files or directories:
 
 ```bash
-python3 -m thucloud upload \
+thucloud upload \
   --repo-id <library-id> \
   --remote-dir /datasets/behave \
   ./Date03.zip
@@ -68,7 +77,7 @@ python3 -m thucloud upload \
 Relay URLs from a text file into cloud storage:
 
 ```bash
-python3 -m thucloud relay \
+thucloud relay \
   --repo-id <library-id> \
   --remote-dir /datasets/behave \
   --links-file deprecated/links.txt \
@@ -79,7 +88,7 @@ python3 -m thucloud relay \
 Use local staged parts when the network is unstable:
 
 ```bash
-python3 -m thucloud relay \
+thucloud relay \
   --repo-id <library-id> \
   --remote-dir /datasets/behave \
   --links-file deprecated/links.txt \
@@ -92,7 +101,7 @@ python3 -m thucloud relay \
 Download from a library:
 
 ```bash
-python3 -m thucloud download \
+thucloud download \
   --repo-id <library-id> \
   -o downloads \
   /datasets/behave/Date03.zip.part000
@@ -101,7 +110,7 @@ python3 -m thucloud download \
 Download from a share link:
 
 ```bash
-python3 -m thucloud share-download \
+thucloud share-download \
   --share-url https://cloud.tsinghua.edu.cn/d/<share-key>/ \
   --include "*.zip" \
   -o downloads \

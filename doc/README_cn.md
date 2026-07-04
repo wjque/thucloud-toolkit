@@ -10,20 +10,29 @@
 - 自动把超大上传拆分为可恢复的 `.partNNN` 分片；
 - 对临时网络错误和云盘后端错误进行安全重试。
 
+命名关系：
+
+- 发行包名：`thucloud-toolkit`
+- Python 导入包名：`thucloud`
+- 命令行程序名：`thucloud`
+
 ## 安装
+
+日常使用时，建议把项目作为安装包安装：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 查看命令帮助：
 
 ```bash
-python3 -m thucloud --help
-python3 thucloud.py --help
+thucloud --help
 ```
+
+开发调试时，也可以在源码目录中使用 `python3 -m thucloud --help`。
 
 ## 身份认证
 
@@ -36,7 +45,7 @@ export THUCLOUD_TOKEN=<your_web_api_auth_token>
 列出当前账号可见的资料库：
 
 ```bash
-python3 -m thucloud repos
+thucloud repos
 ```
 
 如果 token 曾经被粘贴到聊天、日志或脚本中，建议在网页端重新生成并轮换 token。
@@ -46,7 +55,7 @@ python3 -m thucloud repos
 列出远端目录：
 
 ```bash
-python3 -m thucloud ls \
+thucloud ls \
   --repo-id <library-id> \
   --remote-dir /behave
 ```
@@ -54,7 +63,7 @@ python3 -m thucloud ls \
 上传本地文件或目录：
 
 ```bash
-python3 -m thucloud upload \
+thucloud upload \
   --repo-id <library-id> \
   --remote-dir /datasets/behave \
   ./Date03.zip
@@ -63,7 +72,7 @@ python3 -m thucloud upload \
 从文本文件读取 URL，并通过本机中转上传到云盘：
 
 ```bash
-python3 -m thucloud relay \
+thucloud relay \
   --repo-id <library-id> \
   --remote-dir /datasets/behave \
   --links-file deprecated/links.txt \
@@ -74,7 +83,7 @@ python3 -m thucloud relay \
 网络不稳定时，可以先把每个分片下载到本地缓存，再上传到云盘：
 
 ```bash
-python3 -m thucloud relay \
+thucloud relay \
   --repo-id <library-id> \
   --remote-dir /datasets/behave \
   --links-file deprecated/links.txt \
@@ -87,7 +96,7 @@ python3 -m thucloud relay \
 从资料库下载文件：
 
 ```bash
-python3 -m thucloud download \
+thucloud download \
   --repo-id <library-id> \
   -o downloads \
   /datasets/behave/Date03.zip.part000
@@ -96,7 +105,7 @@ python3 -m thucloud download \
 从清华云盘分享链接下载文件：
 
 ```bash
-python3 -m thucloud share-download \
+thucloud share-download \
   --share-url https://cloud.tsinghua.edu.cn/d/<share-key>/ \
   --include "*.zip" \
   -o downloads \
@@ -138,4 +147,3 @@ cat Date03.zip.part* > Date03.zip
 - `403 Access token not found`：临时上传端点失效，工具会重新获取 upload-link 并重试。
 - `500 Internal error`：清华云盘后端处理某个分片失败，重试或降低 `--split-size-gb`。
 - `SSL unexpected eof`：TLS 连接在传输中断开，重试或使用 `--staging-mode cache`。
-
