@@ -1,0 +1,10 @@
+"""Project defaults."""
+
+DEFAULT_CLOUD_URL = "https://cloud.tsinghua.edu.cn"
+DEFAULT_CHUNK_SIZE_MB = 8
+DEFAULT_SPLIT_SIZE_GB = 1.0
+DEFAULT_RETRIES = 5
+DEFAULT_RETRY_DELAY_SEC = 20.0
+DEFAULT_CACHE_DIR = ".cache/thucloud"
+DEFAULT_MAX_CACHE_GB = 20.0
+

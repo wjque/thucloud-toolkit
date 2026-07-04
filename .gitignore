@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+
+.cache/
+downloads/
+deprecated/
+*.part
+*.tmp
+
+dist/
+build/
+*.egg-info/
+
