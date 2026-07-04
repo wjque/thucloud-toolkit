@@ -139,8 +139,14 @@ Defaults are chosen for reliability:
 - `--retries 5`
 - `--skip-existing`
 - `--resume`
+- `--verify-upload`
+- `--upload-timeout-sec 600`
 
 The `relay` command cannot make Tsinghua Cloud fetch third-party URLs server-side. It uses the local machine as the transfer client. In `stream` mode data flows through memory; in `cache` mode each part is downloaded to `.cache/thucloud/parts`, uploaded, then removed unless `--keep-cache` is set.
+
+For stricter local uploads, `--checksum-source` hashes each local part before and after upload. If the source file changes during transfer, the tool stops and records the affected manifest as failed so a later run will reupload instead of trusting a same-size remote file.
+
+For cache-mode relays, stale `*.tmp` cache files are cleaned before the run by default. Use `--no-cleanup-cache`, `--cache-ttl-hours`, or `--keep-cache` to adjust that behavior.
 
 ## Error Notes
 

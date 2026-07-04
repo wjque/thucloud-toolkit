@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from .config import DEFAULT_CLOUD_URL
 from .errors import raise_for_status_with_body
-from .transfer import TransferOptions, retry_call
+from .transfer import TransferOptions, retry_call, source_request_timeout
 
 
 def get_share_key(url: str, cloud_url: str = DEFAULT_CLOUD_URL) -> str:
@@ -134,33 +134,33 @@ def download_share_file(
                 headers["Range"] = "bytes={}-".format(resume_from)
                 mode = "ab"
 
-        resp = session.get(
+        with session.get(
             "{}/d/{}/files/".format(cloud_url.rstrip("/"), share_key),
             params={"p": file_info["file_path"], "dl": "1"},
             headers=headers,
             stream=True,
-            timeout=(15, 60),
-        )
-        raise_for_status_with_body(resp, "Download share file {}".format(file_info["file_path"]))
-        if headers and resp.status_code != 206:
-            logging.warning("Server ignored Range for %s; restarting download.", file_info["file_path"])
-            resume_from = 0
-            mode = "wb"
+            timeout=source_request_timeout(options),
+        ) as resp:
+            raise_for_status_with_body(resp, "Download share file {}".format(file_info["file_path"]))
+            if headers and resp.status_code != 206:
+                logging.warning("Server ignored Range for %s; restarting download.", file_info["file_path"])
+                resume_from = 0
+                mode = "wb"
 
-        with open(part_path, mode) as f:
-            with tqdm(
-                total=expected_size,
-                initial=resume_from if mode == "ab" else 0,
-                ncols=120,
-                unit="iB",
-                unit_scale=True,
-                unit_divisor=1024,
-                desc=os.path.basename(output_path),
-            ) as pbar:
-                for chunk in resp.iter_content(chunk_size=options.chunk_size_bytes):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(len(chunk))
+            with open(part_path, mode) as f:
+                with tqdm(
+                    total=expected_size,
+                    initial=resume_from if mode == "ab" else 0,
+                    ncols=120,
+                    unit="iB",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    desc=os.path.basename(output_path),
+                ) as pbar:
+                    for chunk in resp.iter_content(chunk_size=options.chunk_size_bytes):
+                        if chunk:
+                            f.write(chunk)
+                            pbar.update(len(chunk))
 
         if os.path.getsize(part_path) != expected_size:
             raise ValueError(

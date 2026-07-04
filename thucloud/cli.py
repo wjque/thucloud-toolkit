@@ -9,12 +9,16 @@ import os
 from .client import CloudClient, normalize_remote_dir, normalize_remote_path
 from .config import (
     DEFAULT_CACHE_DIR,
+    DEFAULT_CACHE_TTL_HOURS,
     DEFAULT_CHUNK_SIZE_MB,
     DEFAULT_CLOUD_URL,
+    DEFAULT_CONNECT_TIMEOUT_SEC,
     DEFAULT_MAX_CACHE_GB,
+    DEFAULT_READ_TIMEOUT_SEC,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY_SEC,
     DEFAULT_SPLIT_SIZE_GB,
+    DEFAULT_UPLOAD_TIMEOUT_SEC,
 )
 from .links import parse_links_file
 from .manifest import ManifestStore
@@ -29,6 +33,10 @@ from .transfer import (
 
 def positive_bytes_from_gb(value: float) -> int:
     return int(max(0.0, value) * 1024 * 1024 * 1024)
+
+
+def positive_seconds_from_hours(value: float) -> float:
+    return max(0.0, value) * 60 * 60
 
 
 def setup_logging(level: str) -> None:
@@ -78,6 +86,18 @@ def add_common_transfer_args(parser: argparse.ArgumentParser) -> None:
         default=True,
         help="Resume partial local downloads and keep transfer manifests",
     )
+    parser.add_argument(
+        "--connect-timeout-sec",
+        type=float,
+        default=DEFAULT_CONNECT_TIMEOUT_SEC,
+        help="Socket connect timeout in seconds. Use 0 for no explicit timeout",
+    )
+    parser.add_argument(
+        "--read-timeout-sec",
+        type=float,
+        default=DEFAULT_READ_TIMEOUT_SEC,
+        help="Socket read timeout in seconds for downloads and source URL reads. Use 0 for no explicit timeout",
+    )
 
 
 def add_upload_transfer_args(parser: argparse.ArgumentParser) -> None:
@@ -93,6 +113,27 @@ def add_upload_transfer_args(parser: argparse.ArgumentParser) -> None:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Ask cloud storage to replace existing files on upload",
+    )
+    parser.add_argument(
+        "--upload-timeout-sec",
+        type=float,
+        default=DEFAULT_UPLOAD_TIMEOUT_SEC,
+        help="Socket timeout for upload requests in seconds. Use 0 for no explicit timeout",
+    )
+    parser.add_argument(
+        "--verify-upload",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Verify uploaded remote file size after each file or part",
+    )
+
+
+def add_source_integrity_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--checksum-source",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Hash each local file part before and after upload to detect source changes",
     )
 
 
@@ -111,6 +152,18 @@ def add_cache_args(parser: argparse.ArgumentParser) -> None:
         help="Maximum cache required by one staged part. Use 0 for no explicit limit",
     )
     parser.add_argument("--keep-cache", action="store_true", help="Keep staged URL parts after upload")
+    parser.add_argument(
+        "--cleanup-cache",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Remove stale temporary cache files before cache-mode relay",
+    )
+    parser.add_argument(
+        "--cache-ttl-hours",
+        type=float,
+        default=DEFAULT_CACHE_TTL_HOURS,
+        help="Age in hours after which temporary cache files can be removed. Use 0 to remove all stale temp files",
+    )
 
 
 def make_client(args: argparse.Namespace) -> CloudClient:
@@ -136,6 +189,13 @@ def make_options(args: argparse.Namespace, *, ensure_dirs: bool = True) -> Trans
         keep_cache=getattr(args, "keep_cache", False),
         resume=args.resume,
         ensure_dirs=ensure_dirs,
+        connect_timeout_sec=max(0.0, getattr(args, "connect_timeout_sec", DEFAULT_CONNECT_TIMEOUT_SEC)),
+        read_timeout_sec=max(0.0, getattr(args, "read_timeout_sec", DEFAULT_READ_TIMEOUT_SEC)),
+        upload_timeout_sec=max(0.0, getattr(args, "upload_timeout_sec", DEFAULT_UPLOAD_TIMEOUT_SEC)),
+        verify_upload=getattr(args, "verify_upload", True),
+        cleanup_cache=getattr(args, "cleanup_cache", True),
+        cache_ttl_sec=positive_seconds_from_hours(getattr(args, "cache_ttl_hours", DEFAULT_CACHE_TTL_HOURS)),
+        checksum_source=getattr(args, "checksum_source", False),
     )
 
 
@@ -319,6 +379,7 @@ def build_parser() -> argparse.ArgumentParser:
     upload = subparsers.add_parser("upload", help="Upload local files or directories")
     add_auth_args(upload)
     add_upload_transfer_args(upload)
+    add_source_integrity_args(upload)
     upload.add_argument("--repo-id", required=True)
     upload.add_argument("--remote-dir", default="/")
     upload.add_argument("--no-mkdir", action="store_true", help="Do not create remote directories")
@@ -361,7 +422,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     setup_logging(args.log_level)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except KeyboardInterrupt:
+        logging.warning("Interrupted by user. Partial downloads, manifests, and reusable cache files were preserved.")
+        return 130
 
 
 if __name__ == "__main__":

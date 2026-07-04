@@ -9,6 +9,18 @@ class ThuCloudError(Exception):
     """Base exception for this project."""
 
 
+class TransferInterrupted(ThuCloudError):
+    """Transfer stopped by user request."""
+
+
+class TransferVerificationError(ThuCloudError):
+    """Transfer finished locally but failed a post-transfer verification."""
+
+
+class SourceChangedError(ThuCloudError):
+    """Local source changed while a transfer was in progress."""
+
+
 class ApiError(ThuCloudError):
     """HTTP API error with a short response body."""
 
@@ -66,4 +78,3 @@ def scrub_secret(value: str | None) -> str:
     if len(value) <= 8:
         return "***"
     return "{}...{}".format(value[:4], value[-4:])
-

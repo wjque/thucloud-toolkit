@@ -31,6 +31,17 @@ class ManifestStore:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
 
+    def part_state(self, manifest_id: str, part_name: str) -> str | None:
+        part = self.part_info(manifest_id, part_name)
+        if not isinstance(part, dict):
+            return None
+        state = part.get("state")
+        return str(state) if state is not None else None
+
+    def part_info(self, manifest_id: str, part_name: str) -> dict[str, Any] | None:
+        part = self.load(manifest_id).get("parts", {}).get(part_name)
+        return part if isinstance(part, dict) else None
+
     def save(self, manifest_id: str, data: dict[str, Any]) -> None:
         path = self.path(manifest_id)
         tmp_path = "{}.tmp".format(path)
@@ -48,6 +59,7 @@ class ManifestStore:
         state: str,
         expected_size: int,
         error: str | None = None,
+        source_sha256: str | None = None,
     ) -> None:
         data = self.load(manifest_id)
         parts = data.setdefault("parts", {})
@@ -63,5 +75,6 @@ class ManifestStore:
             item["error"] = error
         elif "error" in item:
             del item["error"]
+        if source_sha256:
+            item["source_sha256"] = source_sha256
         self.save(manifest_id, data)
-

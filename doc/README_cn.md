@@ -134,11 +134,17 @@ cat Date03.zip.part* > Date03.zip
 - `--retries 5`
 - `--skip-existing`
 - `--resume`
+- `--verify-upload`
+- `--upload-timeout-sec 600`
 
 `relay` 命令并不是让清华云盘服务器直接拉取第三方 URL。清华云盘当前上传接口需要客户端提交 multipart 数据，因此本工具会使用本机作为传输客户端：
 
 - `--staging-mode stream`：数据从外部 URL 读取后，经内存流式上传到云盘；
 - `--staging-mode cache`：每个分片先写入 `.cache/thucloud/parts`，上传成功后删除，除非指定 `--keep-cache`。
+
+本地上传需要更严格校验时，可以开启 `--checksum-source`。工具会在每个分片上传前后计算 SHA-256；如果源文件在传输过程中变化，命令会停止并把对应 manifest 标记为失败，后续运行会重新上传而不是只信任远端同大小文件。
+
+`relay --staging-mode cache` 默认会在开始前清理过期的 `*.tmp` 缓存文件。可通过 `--no-cleanup-cache`、`--cache-ttl-hours` 或 `--keep-cache` 调整缓存保留策略。
 
 ## 常见错误
 
